@@ -1,4 +1,4 @@
-Electric Power Load Forecasting
+**Electric Power Load Forecasting**
 
 Table of Contents
 
@@ -8,7 +8,7 @@ Table of Contents
 - Observations Regarding Input Data;
 - The model;
 
-Introduction
+**Introduction**
 
 This project deals with the forecast of electricity consumption 24 hours in
 advance for a single consumer, using data on previous consumption and weather
@@ -16,17 +16,17 @@ data for the same location. It is created as a part of the evaluation process.
 The code is separated into three files. Apart from the main script, two additional
 files are created to hold the Window Generator class and the Holidays function.
 
-Technology
+**Technology**
 
 The code is fully written in Python. Packages versions that were used are:
 Pandas 1.3.5, TensorFlow 2.9.1, Keras 2.9.0, Numpy 1.21.2.
 
-Input Data
+**Input Data**
 
 The input consists of three different files: "EMS_load.csv",
 "EMS_Weather_Daily.csv", and "EMS_Weather_Hourly.csv". The data is collected in the period from 2013 to 2018.  
 
-Observations Regarding Input Data
+**Observations Regarding Input Data**
 
 Load data are available from April 15, 2013, while weather data are available
 from January 1, 2013, so weather data from January 1 to April 15 need to be
@@ -43,7 +43,7 @@ Wind data were taken into account, since, although they have a large number of m
 
 In addition to these variables, holidays and weekends are also marked, ie non-working days.
 
-The Model
+**The Model**
 
 After preprocessing, the created dataset is passed to models for training.
 Using Sequential constructor, several different models were built and trained: Linear, Dense, Convolution Neural Network, and Recurrent Neural Network. Also, the Autoregressive Model was built on the same dataset.
