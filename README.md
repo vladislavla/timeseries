@@ -1,37 +1,72 @@
-Prognoza potrošnje električne energije. 
+Electric Power Load Forecasting
 
-Ovaj projekat se bavi prognozom potrošnje električne energije 24 h unapred,
-koristeći podatke o pređašnjoj potrošnji i o vremenskim podacima za tu lokaciju.
+Table of Contents
 
-Prikupljeni podaci nalaze se u tri fajla: "EMS_Load.csv", "EMS_Weather_Daily.csv" i  
-"EMS_Weather_Hourly.csv" i postoje za period od 2013. do 2018. godine. Podaci
-o opterećenju postoje od 15. aprila 2013., dok su podaci o vremenskim prilikama
-dostupni od 1. januara 2013., pa je vremenske podatke od 1. januara do 15. aprila
-neophodno zanemariti prilikom formiranja dataseta.
+Introduction
+Technology
+Input Data
+Observations Regarding Input Data
+The model
 
-Osim toga, postoje vremenski trenuci za koje pojedine promenljive nemaju definisanu
-vrednost, pa je izvršena popuna ovih podataka. Pored toga, u potrošnji se javljaju
-i 3 outlier-a, 3 nulte potrošnje krajem marta 2014., 2015. i 2016. godine, sve u 2:00 ujutru.
-Verovatno su u pitanju planska isključenja mreže od strane nadležnog distributera
-električne energije, ali, iako su u pitanju potencijalno podaci iz realnog pogona,
-ova 3 nulta podatka su interpolirana kako bi bolje koristila modelu.
+Introduction
 
-Podaci o opterećenju sadržali su i jedan ceo dan nedostajućih podataka, pa su 
-oni popunjeni srednjom vrednošću za svaki čas pojedinačno tokom tog meseca.
+This project deals with the forecast of electricity consumption 24 hours in
+advance for a single consumer, using data on previous consumption and weather
+data for the same location. It is created as a part of the evaluation process.
+The code is separated into three files. Apart from the main script, two additional
+files are created to hold the Window Generator class and the Holidays function.
 
-Zbog velikog broja nedostajućih podataka (preko 65% ukupnih podataka, ili više od 30000),
-kao i upitne korelacije sa potrošnjom električne energije, podaci o oblačnosti
-su potpuno izuzeti iz modela. Pored toga, nedostaju promenljive preko kojih bi se
-oblačnost mogla predvideti (npr podaci o solarnoj iradijaciji za datu lokaciju).
+Technology
 
-Podaci o vetrovitosti uzeti su u obzir, s obzirom da, iako imaju veliki broj 
-nedostajućih podataka, postoji podatak o srednjoj brzini vetra za svaki dan,
-te su ovi podaci ubačeni tamo gde nije postojala vrednost u fajlu "EMS_Weather_Hourly".
+The code is fully written in Python. Packages versions that were used are:
+Pandas 1.3.5, TensorFlow 2.9.1, Keras 2.9.0, Numpy 1.21.2. 
 
-Pored ovih promenljivih, obeleženi su i praznici i vikendi, tj neradni dani.
-Tu bi od značaja bile i informacije o tipu potrošača, kako bi bilo poznato 
-šta bi moglo da se očekuje po pitanju profila potrošnje. 
+Input Data
 
-Vetrovitost, praznici i vikendi nisu nosili mnogo težine, tj njihov značaj
-nije bio veliki za sam model. Model je najveći značaj davao podacima o samoj 
-potrošnji (ubedljivo), temperaturi i vremenskom trenutku. 
+The input consists of three different files: "EMS_load.csv",
+"EMS_Weather_Daily.csv", and "EMS_Weather_Hourly.csv".
+The data is collected in the period from 2013 to 2018.  
+
+Observations Regarding Input Data
+
+Load data are available from April 15, 2013, while weather data are available 
+from January 1, 2013, so weather data from January 1 to April 15 need to be
+ignored when building a dataset.
+
+In addition, there are time moments for which individual variables do not 
+have a defined value, so this data was filled in. There are also three 
+outliers in consumption, three zero consumption at the end of March 2014, 2015, and 2016,
+all at 2:00 in the morning. These are probably planned grid outages by the competent
+electricity distributor, but, although these are potentially real-world data,
+these 3 zero data have been interpolated to make better use of the model.
+
+Load data also contained one full day of missing data, so these were 
+filled with the mean value for each hour individually during that month.
+
+Due to a large number of missing data (over 65% of total data,
+or more than 30,000), as well as questionable correlations with electricity consumption,
+Cloudiness data are completely excluded from the model. In addition,
+variables that could be used to predict cloudiness are missing
+(eg solar irradiation data for a given location).
+
+Wind data were taken into account, since, although they have a large number
+of missing data, there is data on the average wind speed for each day,
+and this data was inserted where there was no value in the file "EMS_Weather_Hourly.csv".
+
+In addition to these variables, holidays and weekends are also marked, ie non-working days.
+
+The Model
+
+After preprocessing, the created dataset is passed to models for training.
+Using Sequential constructor, several different models were built and trained:
+ Linear, Dense, Convolution Neural Network, and Recurrent Neural Network.
+ Also, the Autoregressive Model was built on the same dataset.
+
+The performance of each model is shown on the diagram Performance.png.
+Feature_importance.png shows the importance that the linear model,
+built for predicting the load one hour into the future,
+assigns to each feature. By far the most weight is placed on the previous
+consumption itself. Temperature and time data also carried some weight,
+while wind speed, holidays, and weekends did not have a significant
+impact on the model.
+Images Multi-LSTM-model and Autoregressive Model show the output of those models.
