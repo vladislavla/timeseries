@@ -24,55 +24,39 @@ import tensorflow as tf
 mpl.rcParams["figure.figsize"] = (8, 6)
 mpl.rcParams["axes.grid"] = False
 
-# Loading files to dataframes
-
 path = os.path.dirname(os.path.realpath(__file__))
 files = os.listdir(path + "\\EMS")
 
 
-def loading_file(file_number):
+def main():
+    global ems_load, ems_weather_daily, ems_weather_hourly
+    loading_file()
+    df_rearrangement()
+    filling_missing_data()
+
+
+# Loading files to dataframes
+
+
+def loading_file():
     '''
-    Function takes one of three file numbers as an input (0, 1, or 2),
-    depending on which dataframe is read from a folder.
-    It returns initially formatted dataframe.
-
-    0 is for ems_load, 1 for ems_weather_daily, and 2 for ems_weather_hourly.
+    Function loads ems__load, ems_weather_daily, and ems_weather_hourly from
+    folder
     '''
+    global ems_load, ems_weather_daily, ems_weather_hourly
 
-    df = pd.read_csv(path + '\\EMS\\' + files[file_number])
+    ems_load = pd.read_csv(path + '\\EMS\\' + files[0], delimiter=';')
+    ems_weather_daily = pd.read_csv(path + '\\EMS\\' + files[1], delimiter=';')
+    ems_weather_hourly = pd.read_csv(path + '\\EMS\\' + files[2],
+                                     delimiter=';')
 
-    # Splitting of columns
-    if file_number == 0:
-        try:
-            df[['Timestamp', 'Load']] = df['Timestamp;Load'].str.split(
-                ';', expand=True)
-            df.pop('Timestamp;Load')
-        except KeyError:
-            print('Dataframe is not properly formatted')
-    elif file_number == 1 or file_number == 2:
-        try:
-            df[['Timestamp', 'WeatherType', 'WeatherValue']] = df[
-                'Timestamp;WeatherType;WeatherValue'].str.split(
-                    ';', expand=True)
-            df.pop('Timestamp;WeatherType;WeatherValue')
-        except KeyError:
-            print('Dataframe is not properly formatted')
-    else:
-        print('Inadequate input')
-    df['Timestamp'] = pd.to_datetime(df['Timestamp'])
-    return df
-
-
-ems_load = loading_file(0)
-ems_weather_daily = loading_file(1)
-ems_weather_hourly = loading_file(2)
-
+    ems_load['Timestamp'] = pd.to_datetime(ems_load['Timestamp'])
+    ems_weather_daily['Timestamp'] = pd.to_datetime(
+        ems_weather_daily['Timestamp'])
+    ems_weather_hourly['Timestamp'] = pd.to_datetime(
+        ems_weather_hourly['Timestamp'])
 
 # Rearrangement of dfs
-
-# List of dates that will be taken into consideration
-datelist = pd.date_range(ems_load['Timestamp'].iloc[0], ems_load['Timestamp'].
-                         iloc[-1], freq='1H')
 
 
 def df_rearrangement():
@@ -80,6 +64,7 @@ def df_rearrangement():
     Function rearranges ems_load, ems_weather_hourly and ems_weather_daily.
     '''
     global ems_load, ems_weather_daily, ems_weather_hourly
+
     try:
         ems_weather_hourly = ems_weather_hourly.pivot(
             "Timestamp", columns="WeatherType", values="WeatherValue")
@@ -120,7 +105,6 @@ def df_rearrangement():
         print('DFs not properly formatted')
 
 
-df_rearrangement()
 ###############################
 
 # Handling missing and corrupt data
@@ -211,9 +195,15 @@ def filling_missing_data():
         print('Dfs not properly formatted')
 
 
-filling_missing_data()
+if __name__ == '__main__':
+    main()
+
 
 ###############
+# List of dates that will be taken into consideration
+
+datelist = pd.date_range(ems_load.index[0], ems_load.index[-1], freq='1H')
+
 # Completing the df that will be used as an input to the model
 
 df = pd.concat([ems_load, ems_weather_hourly[["Temperature", "Wind"]]], axis=1)
