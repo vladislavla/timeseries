@@ -31,7 +31,7 @@ files = os.listdir(path + "\\EMS")
 def main():
 
     global ems_load, ems_weather_daily, ems_weather_hourly, datelist
-    global df, train_df, val_df, test_df
+    global df, train_df, val_df, test_df, train_mean, train_std
 
     # Loading files to dataframes
     loading_file()
@@ -50,26 +50,19 @@ def main():
                    axis=1)
 
     # Handling periodicity
-    df = Periodicity(df)
+    df = periodicity(df)
 
     # Holidays
-    years = [2013, 2014, 2015, 2016, 2017, 2018]
-    rs_holidays = []
-    for year in years:
-        rs_holidays.extend(Holidays(year))
-    df["Holidays"] = 0
-    df.loc[df.index.isin(rs_holidays), "Holidays"] = 1
-    s = df["Holidays"][df["Holidays"].index.strftime("%H:%M:%S") == "00:00:00"]
-    s.index = s.index.date
-    df.loc[:, ["Holidays"]] = s.reindex(df["Holidays"].index.date).values
+    df = adding_holidays(df)
 
     # Weekends and workdays
-    df["Weekdays"] = df.index.to_series().dt.dayofweek
-    df.loc[df["Weekdays"] <= 4, "Weekdays"] = 0
-    df.loc[df["Weekdays"] > 4, "Weekdays"] = 1
+    df = adding_weekdays(df)
 
     # Spliting the data
     train_df, val_df, test_df = spliting_the_data(df)
+
+    train_mean = train_df.mean()
+    train_std = train_df.std()
 
     # Normalization
     train_df = Normalization(train_df)
@@ -175,9 +168,6 @@ def filling_missing_data():
         ems_load["Load"][privremeno.index[8] == ems_load.index] = round(
             float(privremeno.mean()))
 
-        # Zamena nula koje se pojavljuju u opterecenju srednjom vrednoscu
-        # prethodnog i narednog opterecenja
-
         # Load zeros are replaced with the average between prior and subsequent
         # value
 
@@ -237,10 +227,9 @@ def filling_missing_data():
         print('Dfs not properly formatted')
 
 
-###############
+###################################################################
 
-
-def Periodicity(df):
+def periodicity(df):
     '''
     Function takes dataframe as an input and returns it after adding columns
     Day sin, Day cos, Year sin, and Year cos.
@@ -257,7 +246,41 @@ def Periodicity(df):
     return df
 
 
-################
+###################################################################
+
+
+def adding_holidays(df):
+    '''
+    Function takes df and adds holidays column to it
+    '''
+    years = [2013, 2014, 2015, 2016, 2017, 2018]
+    rs_holidays = []
+    for year in years:
+        rs_holidays.extend(Holidays(year))
+    df["Holidays"] = 0
+    df.loc[df.index.isin(rs_holidays), "Holidays"] = 1
+    s = df["Holidays"][df["Holidays"].index.strftime("%H:%M:%S") == "00:00:00"]
+    s.index = s.index.date
+    df.loc[:, ["Holidays"]] = s.reindex(df["Holidays"].index.date).values
+
+    return df
+
+
+###################################################################
+
+
+def adding_weekdays(df):
+    '''
+    Function takes df and adds weekdays column to it where weekends are marked
+    '''
+    df["Weekdays"] = df.index.to_series().dt.dayofweek
+    df.loc[df["Weekdays"] <= 4, "Weekdays"] = 0
+    df.loc[df["Weekdays"] > 4, "Weekdays"] = 1
+
+    return df
+
+
+###################################################################
 
 
 def spliting_the_data(df):
@@ -269,10 +292,11 @@ def spliting_the_data(df):
     train_df = df[0:int(n * 0.7)]
     val_df = df[int(n * 0.7):int(n * 0.9)]
     test_df = df[int(n * 0.9):]
+
     return (train_df, val_df, test_df)
 
 
-#################################
+###################################################################
 
 
 def Normalization(df):
@@ -280,15 +304,13 @@ def Normalization(df):
     Function takes df and returns it after normalizing its values
     '''
     df = (df-df.mean()) / df.std()
+
     return df
 
 
-##################################
+###################################################################
 if __name__ == '__main__':
     main()
-
-train_mean = train_df.mean()
-train_std = train_df.std()
 
 df_std = (df - train_mean) / train_std
 df_std = df_std.melt(var_name="Column", value_name="Normalized")
@@ -316,7 +338,7 @@ for example_inputs, example_labels in w1.train.take(1):
     print(f"Inputs shape (batch, time, features): {example_inputs.shape}")
     print(f"Labels shape (batch, time, features): {example_labels.shape}")
 
-#####################
+###################################################################
 # Building model
 
 MAX_EPOCHS = 20
