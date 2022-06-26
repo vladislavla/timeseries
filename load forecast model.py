@@ -29,13 +29,56 @@ files = os.listdir(path + "\\EMS")
 
 
 def main():
-    global ems_load, ems_weather_daily, ems_weather_hourly
+
+    global ems_load, ems_weather_daily, ems_weather_hourly, datelist
+    global df, train_df, val_df, test_df
+
+    # Loading files to dataframes
     loading_file()
+
+    # Rearrangement of dfs
     df_rearrangement()
+
+    # Handling missing and corrupt data
     filling_missing_data()
 
+    # List of dates that will be taken into consideration
+    datelist = pd.date_range(ems_load.index[0], ems_load.index[-1], freq='1H')
 
-# Loading files to dataframes
+    # Completing the df that will be used as an input to the model
+    df = pd.concat([ems_load, ems_weather_hourly[["Temperature", "Wind"]]],
+                   axis=1)
+
+    # Handling periodicity
+    df = Periodicity(df)
+
+    # Holidays
+    years = [2013, 2014, 2015, 2016, 2017, 2018]
+    rs_holidays = []
+    for year in years:
+        rs_holidays.extend(Holidays(year))
+    df["Holidays"] = 0
+    df.loc[df.index.isin(rs_holidays), "Holidays"] = 1
+    s = df["Holidays"][df["Holidays"].index.strftime("%H:%M:%S") == "00:00:00"]
+    s.index = s.index.date
+    df.loc[:, ["Holidays"]] = s.reindex(df["Holidays"].index.date).values
+
+    # Weekends and workdays
+    df["Weekdays"] = df.index.to_series().dt.dayofweek
+    df.loc[df["Weekdays"] <= 4, "Weekdays"] = 0
+    df.loc[df["Weekdays"] > 4, "Weekdays"] = 1
+
+    # Spliting the data
+    train_df, val_df, test_df = spliting_the_data(df)
+
+    # Normalization
+    train_df = Normalization(train_df)
+    val_df = Normalization(val_df)
+    test_df = Normalization(test_df)
+
+
+##################################
+# Functions
 
 
 def loading_file():
@@ -56,7 +99,8 @@ def loading_file():
     ems_weather_hourly['Timestamp'] = pd.to_datetime(
         ems_weather_hourly['Timestamp'])
 
-# Rearrangement of dfs
+
+##########################
 
 
 def df_rearrangement():
@@ -106,8 +150,6 @@ def df_rearrangement():
 
 
 ###############################
-
-# Handling missing and corrupt data
 
 
 def filling_missing_data():
@@ -195,22 +237,7 @@ def filling_missing_data():
         print('Dfs not properly formatted')
 
 
-if __name__ == '__main__':
-    main()
-
-
 ###############
-# List of dates that will be taken into consideration
-
-datelist = pd.date_range(ems_load.index[0], ems_load.index[-1], freq='1H')
-
-# Completing the df that will be used as an input to the model
-
-df = pd.concat([ems_load, ems_weather_hourly[["Temperature", "Wind"]]], axis=1)
-
-df.describe()
-
-# Handling periodicity
 
 
 def Periodicity(df):
@@ -230,35 +257,7 @@ def Periodicity(df):
     return df
 
 
-df = Periodicity(df)
-# Holidays
-
-years = [2013, 2014, 2015, 2016, 2017, 2018]
-rs_holidays = []
-for year in years:
-    rs_holidays.extend(Holidays(year))
-
-df["Holidays"] = 0
-df.loc[df.index.isin(rs_holidays), "Holidays"] = 1
-
-s = df["Holidays"][df["Holidays"].index.strftime("%H:%M:%S") == "00:00:00"]
-s.index = s.index.date
-df.loc[:, ["Holidays"]] = s.reindex(df["Holidays"].index.date).values
-
-# Weekends and workdays
-
-df["Weekdays"] = df.index.to_series().dt.dayofweek
-
-df.loc[df["Weekdays"] <= 4, "Weekdays"] = 0
-df.loc[df["Weekdays"] > 4, "Weekdays"] = 1
-
-df.head()
-
-column_indices = {name: i for i, name in enumerate(df.columns)}
-
-# sys.exit()
 ################
-# Spliting the data
 
 
 def spliting_the_data(df):
@@ -273,11 +272,7 @@ def spliting_the_data(df):
     return (train_df, val_df, test_df)
 
 
-train_df, val_df, test_df = spliting_the_data(df)
-
-num_features = df.shape[1]
-
-# Normalization
+#################################
 
 
 def Normalization(df):
@@ -288,12 +283,12 @@ def Normalization(df):
     return df
 
 
+##################################
+if __name__ == '__main__':
+    main()
+
 train_mean = train_df.mean()
 train_std = train_df.std()
-
-train_df = Normalization(train_df)
-val_df = Normalization(val_df)
-test_df = Normalization(test_df)
 
 df_std = (df - train_mean) / train_std
 df_std = df_std.melt(var_name="Column", value_name="Normalized")
@@ -301,7 +296,15 @@ plt.figure(figsize=(12, 6))
 ax = sns.violinplot(x="Column", y="Normalized", data=df_std)
 _ = ax.set_xticklabels(df.keys(), rotation=90)
 
-# Primer prozora
+df.head()
+
+column_indices = {name: i for i, name in enumerate(df.columns)}
+
+num_features = df.shape[1]
+
+# sys.exit()
+
+# Example window
 
 w1 = WindowGenerator(input_width=24, label_width=1, shift=1,
                      label_columns=["Load"],
@@ -314,8 +317,7 @@ for example_inputs, example_labels in w1.train.take(1):
     print(f"Labels shape (batch, time, features): {example_labels.shape}")
 
 #####################
-
-# Trening procedura
+# Building model
 
 MAX_EPOCHS = 20
 
@@ -387,7 +389,7 @@ multi_performance["Repeat"] = repeat_baseline.evaluate(multi_window.test,
                                                        verbose=0)
 multi_window.plot(repeat_baseline)
 
-# linear
+# Linear
 
 multi_linear_model = tf.keras.Sequential(
     [
@@ -412,7 +414,7 @@ multi_performance["Linear"] = multi_linear_model.evaluate(multi_window.test,
                                                           verbose=0)
 multi_window.plot(multi_linear_model)
 
-# dense
+# Dense
 multi_dense_model = tf.keras.Sequential(
     [
         # Take the last time step.
@@ -438,7 +440,7 @@ multi_performance["Dense"] = multi_dense_model.evaluate(multi_window.test,
                                                         verbose=0)
 multi_window.plot(multi_dense_model)
 
-# cnn
+# CNN
 CONV_WIDTH = 3
 multi_conv_model = tf.keras.Sequential(
     [
@@ -466,7 +468,7 @@ multi_performance["Conv"] = multi_conv_model.evaluate(multi_window.test,
                                                       verbose=0)
 multi_window.plot(multi_conv_model)
 
-# rnn
+# RNN
 
 multi_lstm_model = tf.keras.Sequential(
     [
