@@ -30,17 +30,16 @@ files = os.listdir(path + "\\EMS")
 
 def main():
 
-    global ems_load, ems_weather_daily, ems_weather_hourly, datelist
-    global df, train_df, val_df, test_df, train_mean, train_std
-
     # Loading files to dataframes
-    loading_file()
+    ems_load, ems_weather_daily, ems_weather_hourly = loading_file()
 
     # Rearrangement of dfs
-    df_rearrangement()
+    ems_load, ems_weather_daily, ems_weather_hourly = df_rearrangement(
+        ems_load, ems_weather_daily, ems_weather_hourly)
 
     # Handling missing and corrupt data
-    filling_missing_data()
+    ems_load, ems_weather_daily, ems_weather_hourly = filling_missing_data(
+        ems_load, ems_weather_daily, ems_weather_hourly)
 
     # List of dates that will be taken into consideration
     datelist = pd.date_range(ems_load.index[0], ems_load.index[-1], freq='1H')
@@ -50,7 +49,7 @@ def main():
                    axis=1)
 
     # Handling periodicity
-    df = periodicity(df)
+    df = periodicity(df, datelist)
 
     # Holidays
     df = adding_holidays(df)
@@ -69,6 +68,9 @@ def main():
     val_df = Normalization(val_df)
     test_df = Normalization(test_df)
 
+    return (ems_load, ems_weather_daily, ems_weather_hourly, df, train_df,
+            val_df, test_df, train_mean, train_std)
+
 
 ##################################
 # Functions
@@ -79,7 +81,6 @@ def loading_file():
     Function loads ems__load, ems_weather_daily, and ems_weather_hourly from
     folder
     '''
-    global ems_load, ems_weather_daily, ems_weather_hourly
 
     ems_load = pd.read_csv(path + '\\EMS\\' + files[0], delimiter=';')
     ems_weather_daily = pd.read_csv(path + '\\EMS\\' + files[1], delimiter=';')
@@ -92,16 +93,19 @@ def loading_file():
     ems_weather_hourly['Timestamp'] = pd.to_datetime(
         ems_weather_hourly['Timestamp'])
 
+    return (ems_load, ems_weather_daily, ems_weather_hourly)
+
 
 ##########################
 
 
-def df_rearrangement():
+def df_rearrangement(df1, df2, df3):
     '''
-    Function rearranges ems_load, ems_weather_hourly and ems_weather_daily.
+    Function rearranges ems_load, ems_weather_daily and ems_weather_hourly.
     '''
-    global ems_load, ems_weather_daily, ems_weather_hourly
-
+    ems_load = df1
+    ems_weather_daily = df2
+    ems_weather_hourly = df3
     try:
         ems_weather_hourly = ems_weather_hourly.pivot(
             "Timestamp", columns="WeatherType", values="WeatherValue")
@@ -141,17 +145,19 @@ def df_rearrangement():
     except KeyError:
         print('DFs not properly formatted')
 
+    return (ems_load, ems_weather_daily, ems_weather_hourly)
+
 
 ###############################
 
 
-def filling_missing_data():
+def filling_missing_data(df1, df2, df3):
     '''
     Inside of the function, a missing data is handled
     '''
-
-    global ems_load, ems_weather_daily, ems_weather_hourly
-
+    ems_load = df1
+    ems_weather_daily = df2
+    ems_weather_hourly = df3
     try:
 
         ems_load_nan = ems_load[ems_load["Load"].isna()]
@@ -226,14 +232,18 @@ def filling_missing_data():
     except KeyError:
         print('Dfs not properly formatted')
 
+    return (ems_load, ems_weather_daily, ems_weather_hourly)
+
 
 ###################################################################
 
-def periodicity(df):
+
+def periodicity(df, datelist):
     '''
     Function takes dataframe as an input and returns it after adding columns
     Day sin, Day cos, Year sin, and Year cos.
     '''
+    datelist = datelist
     timestamp_s = datelist.map(pd.Timestamp.timestamp)
     day = 24 * 60 * 60
     year = (365.2425) * day
@@ -311,6 +321,9 @@ def Normalization(df):
 ###################################################################
 if __name__ == '__main__':
     main()
+
+ems_load, ems_weather_daily, ems_weather_hourly, df, train_df,\
+    val_df, test_df, train_mean, train_std = main()
 
 df_std = (df - train_mean) / train_std
 df_std = df_std.melt(var_name="Column", value_name="Normalized")
